@@ -6,7 +6,7 @@
 
 ## 0. 官方 DeepSeek Harness 现状基线
 
-本计划依据本地官方 DSH 仓库与已发布生态最新状态修订（2026-09-06）。上游 GitHub 最新预发布为 `dsh-v0.1.3-alpha.1`，但截至本地维护文档记录，npm 可安装基线仍为 `@deepseek-ai/dsh@0.1.2-rc.1`。因此本计划的“兼容/CI 门禁基线”固定为 0.1.2-rc.1；“alpha 预发布”仅作为观察与可选验证，不作为默认可复现基线。scanner 通过 npm 包安装，安装命令固定为 `npm i dsh-repo-scanner`，具体版本以安装生成的 lockfile 和运行时 `tool.version` 为准：
+本计划依据本地官方 DSH 仓库与已发布生态最新状态修订（初版 2026-09-06，2026-09-11 随宿主基线迁移更新）。上游 GitHub 最新预发布为 `dsh-v0.1.3-alpha.1`（仅作观察与可选验证，不作为默认可复现基线）。本计划的“兼容/CI 门禁基线”自 2026-09-11 起固定为 `@deepseek-ai/dsh@0.1.5-rc.2`（此前为 `0.1.2-rc.1`，历史记录见各版 CHANGELOG）。scanner 通过 npm 包安装，安装命令固定为 `npm i dsh-repo-scanner`，具体版本以安装生成的 lockfile 和运行时 `tool.version` 为准：
 
 - DSH 可执行/安装兼容基线 `@deepseek-ai/dsh@0.1.5-rc.2`（npm，2026-09-11 起）：
   - 宿主运行要求 Node `>=22.19`；本插件的 `test:compat`、CI 组合验证、发布前 smoke test 固定使用该版本。

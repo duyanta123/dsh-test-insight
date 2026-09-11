@@ -2,7 +2,16 @@
   "name": "dsh-test-insight",
   "version": "1.0.0-rc.2",
   "description": "Evidence-backed test plans and reviewable test drafts for DeepSeek Harness.",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duyanta123/dsh-test-insight.git"
+  },
+  "bugs": {
+    "url": "https://github.com/duyanta123/dsh-test-insight/issues"
+  },
+  "homepage": "https://github.com/duyanta123/dsh-test-insight#readme",
   "engines": {
     "node": ">=20.11"
   },
@@ -22,7 +31,9 @@
     "skills",
     "docs",
     "README.md",
+    "README.zh-CN.md",
     "CHANGELOG.md",
+    "LICENSE",
     "cordis.patch.yml"
   ],
   "scripts": {
@@ -47,5 +58,14 @@
     "@deepseek-ai/dsh-skill-filesystem": {
       "optional": true
     }
-  }
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "test-insight",
+    "test-plan",
+    "coverage",
+    "code-quality"
+  ]
 }
