@@ -170,6 +170,15 @@ function appendLimited(state, chunk, maxBytes) {
   if (accepted.length < buffer.length) state.truncated = true;
 }
 
+// A host that itself runs under node:test marks its process environment with
+// NODE_TEST_CONTEXT; an authorized `node --test` child that inherits the
+// marker skips its files and exits 0 without running anything, so strip it.
+function sanitizeSpawnEnvironment() {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+}
+
 export async function executeAuthorizedTests({ repoPath, command, report = null, authorized = false, timeoutMs = 120_000, maxOutputBytes = 1_048_576 } = {}) {
   if (!authorized) {
 	throw new InsightError("test execution requires explicit authorization", {
@@ -185,6 +194,7 @@ export async function executeAuthorizedTests({ repoPath, command, report = null,
   const startedAt = Date.now();
   const child = spawn(executable(file), args, {
 	cwd: path.resolve(repoPath),
+	env: sanitizeSpawnEnvironment(),
 	shell: false,
 	windowsHide: true,
 	stdio: ["ignore", "pipe", "pipe"],
