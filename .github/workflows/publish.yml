@@ -36,4 +36,14 @@ jobs:
           npm pack --dry-run
 
       - name: Publish to npm with OIDC
-        run: npm publish --access public
+        # Bootstrap: npm OIDC cannot first-publish a new package (npm/cli#8544),
+        # so 1.0.0-rc.3 is published manually (see PUBLISHING.md §npm). Skip the
+        # tag-triggered run once that version is already on the registry.
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version is already on the npm registry; skipping publish."
+          else
+            npm publish --access public
+          fi
