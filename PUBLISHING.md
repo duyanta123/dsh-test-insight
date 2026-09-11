@@ -34,7 +34,7 @@
 ### GitHub
 
 1. push `main`，确认 CI 全绿（ubuntu + windows + macos × Node 20.11/22 + 包级 smoke + DSH compat job）。
-2. 打 tag `vX.Y.Z`（与 `package.json` version 一致，如当前 `v1.0.0-rc.2`）并推送。
+2. 打 tag `vX.Y.Z`（与 `package.json` version 一致，如当前 `v1.0.0-rc.3`）并推送。npm 首发例外：首个版本需本地 `npm publish` 并在 npmjs.com 绑定 trusted publisher（见 §npm）。
 3. 给仓库添加 GitHub topic `dsh-plugin`（awesome 收录门槛之一）。
 
 ### npm

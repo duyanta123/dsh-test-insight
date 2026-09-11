@@ -32,7 +32,7 @@ Boundaries:
 As a DSH plugin:
 
 ```bash
-dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.2"
+dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.3"
 ```
 
 Or from npm (as a library or standalone CLI):

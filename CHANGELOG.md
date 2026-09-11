@@ -1,5 +1,11 @@
 # Changelog
 
+# 1.0.0-rc.3 - 2026-09-12
+
+- 准备 npm 首发：新增 `.github/workflows/publish.yml`（trusted publishing，`v*` tag 推送与 workflow_dispatch 双通道）。npm OIDC 无法完成新包的首次发布（npm/cli#8544），首个版本需本地 `npm publish` 并在 npmjs.com 绑定 trusted publisher，此后 tag 推送即自动发布。
+- 补充 `LICENSE`（MIT）与 `package.json` 仓库元数据（license / repository / bugs / homepage / keywords），`files` 纳入 `README.zh-CN.md` 与 `LICENSE`。
+- 全量重写双语 README，开发计划改名并修正基线矛盾表述。1.0.0-rc.2 仅作为 git 里程碑，未发布至 npm。
+
 # 1.0.0-rc.2 - 2026-09-11
 
 - DSH 宿主兼容基线从 `0.1.2-rc.1` 迁移到 `0.1.5-rc.2`：新增 `npm run test:compat` 门禁（隔离 profile 的 add、配置 dump、有限时长启动）与 CI compat job（Windows/Ubuntu × Node 22.19），`.ci/dsh-host` 组合验证夹具同步锁定 `0.1.5-rc.2`。

@@ -1,6 +1,6 @@
 {
   "name": "dsh-test-insight",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "description": "Evidence-backed test plans and reviewable test drafts for DeepSeek Harness.",
   "license": "MIT",
   "type": "module",

@@ -8,7 +8,7 @@
 | 项 | 值 |
 |---|---|
 | 类型 | 测试型（仓库事实 → 测试计划与测试草稿） |
-| 当前版本 | 1.0.0-rc.2 |
+| 当前版本 | 1.0.0-rc.3 |
 | 分发状态 | 已转正（2026-09-11，github.com/duyanta123/dsh-test-insight）；awesome 收录条目待建 |
 | 运行时 | 零构建 ESM，独立 CLI/库 Node >=20.11；DSH 宿主 >=22.19 |
 | 核心依赖 | npm `dsh-repo-scanner`（唯一带 dependencies 的插件仓；不复制 scanner 源码） |
