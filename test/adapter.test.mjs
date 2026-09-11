@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   buildTestMapping,
   scanWithAdapter,
@@ -8,8 +9,7 @@ import {
   validateScannerReport,
 } from "../src/index.mjs";
 
-const repoPath = new URL("./fixtures/adapter-repo/", import.meta.url);
-const repo = decodeURIComponent(repoPath.pathname.replace(/^\//, "").replace(/^([A-Za-z]):\//, "$1:/"));
+const repo = fileURLToPath(new URL("./fixtures/adapter-repo/", import.meta.url));
 
 function scanInput(mode = "all") {
   return {

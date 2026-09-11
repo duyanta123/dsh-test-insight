@@ -127,10 +127,11 @@ async function runCompat() {
   const runNpm = (args, options = {}) => run(process.execPath, [npmExecPath, ...args], options);
   const install = runNpm([
     "install", "--prefix", cliRoot, "--no-save", "--no-package-lock",
+    "--no-audit", "--no-fund",
     `@deepseek-ai/dsh@${DSH_VERSION}`,
   ], {
     env: { ...process.env, DSH_HOME: dshHome, DSH_AGENTS_HOME: dshAgentsHome },
-    timeout: 600_000,
+    timeout: 900_000,
   });
   assertOk(install, `install @deepseek-ai/dsh@${DSH_VERSION}`);
 

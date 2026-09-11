@@ -7,6 +7,7 @@
 - 提示：DSH 宿主升级到 0.1.5 系后 Session format 迁移为 V3，不可逆；最终用户升级宿主前请备份会话日志。
 - `.gitignore` 排除 `.ci/` 下的安装工件（node_modules、tgz），宿主夹具改为现场生成。
 - 修复 `src/execution.mjs` 中 `normalizeArrayCommand` 函数体错位导致 `validateExecutionCommand` 等作用域丢失、授权测试执行路径 3 例测试失败的问题（存量损坏，与宿主升级无关）。
+- 首次 CI 全矩阵运行暴露并修复四处测试缺陷（均不影响运行时行为）：`test/adapter.test.mjs` 的 fixture 路径在 POSIX 上丢失前导 `/`（改用 `fileURLToPath`）；`test/input.test.mjs` 缓存用例误嵌套进上一测试体导致子测试被取消；`test/fixtures/execution/slow.test.mjs` 改为注册异步测试，避免 Node 22 测试运行器对未注册用例的文件提前退出；compat 的 DSH 安装步骤增加 `--no-audit --no-fund` 并放宽超时至 900s。
 
 # 1.0.0-rc.1 - 2026-09-06
 
