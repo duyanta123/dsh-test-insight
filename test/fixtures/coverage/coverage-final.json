@@ -1,0 +1,13 @@
+{
+  "/repo/src/auth.js": {
+    "statementMap": {
+      "0": { "start": { "line": 1, "column": 0 }, "end": { "line": 1, "column": 10 } },
+      "1": { "start": { "line": 2, "column": 0 }, "end": { "line": 2, "column": 10 } }
+    },
+    "s": { "0": 1, "1": 0 },
+    "fnMap": { "0": { "name": "authenticate", "loc": { "start": { "line": 1 }, "end": { "line": 2 } } } },
+    "f": { "0": 1 },
+    "branchMap": { "0": { "locations": [{ "start": { "line": 2 }, "end": { "line": 2 } }, { "start": { "line": 2 }, "end": { "line": 2 } }] } },
+    "b": { "0": [1, 0] }
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh-test-insight.dev/schema/test-insight.schema.json",
+  "title": "dsh-test-insight report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "input",
+    "scope",
+    "targets",
+    "evidence",
+    "gaps",
+    "designs",
+    "warnings",
+    "limits",
+    "timing",
+    "coverage",
+    "test_matrix",
+    "drafts",
+    "execution"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "tool": {
+      "$ref": "#/$defs/tool"
+    },
+    "input": {
+      "$ref": "#/$defs/input"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    },
+    "drafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "path", "status", "review_required", "syntax"],
+        "additionalProperties": true,
+        "properties": {
+          "target": { "type": "string" },
+          "path": { "type": "string" },
+          "status": { "const": "draft_only" },
+          "review_required": { "const": true },
+          "syntax": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/gap"
+      }
+    },
+    "designs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "coverage": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "test_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["target", "categories"],
+        "additionalProperties": true,
+        "properties": {
+          "target": { "type": "string" },
+          "test_files": { "type": "array", "items": { "type": "string" } },
+          "categories": { "type": "object", "additionalProperties": { "type": "string" } }
+        }
+      }
+    },
+    "execution": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "scanner": { "type": ["string", "null"] }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": true,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["all", "change", "target"]
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": ["path", "priority", "confidence"],
+      "additionalProperties": true,
+      "properties": {
+        "path": { "type": "string" },
+        "symbol": { "type": "string" },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown"]
+        },
+        "risk_factors": { "type": "array", "items": { "type": "string" } },
+        "entry_point": { "type": ["string", "null"] },
+        "exported_api": { "type": "boolean" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["level", "source"],
+      "additionalProperties": true,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D", "E"]
+        },
+        "source": { "type": "string" },
+        "type": { "type": "string" },
+        "test_file": { "type": "string" },
+        "target_file": { "type": "string" },
+        "confidence": { "type": "string", "enum": ["high", "medium", "low", "unknown"] }
+      }
+    },
+    "gap": {
+      "type": "object",
+      "required": ["type", "priority", "confidence"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "no_test_found",
+            "weak_test_association",
+            "changed_without_test_change",
+            "public_api_untested",
+            "error_path_untested",
+            "boundary_case_unknown",
+            "integration_path_untested",
+            "coverage_below_threshold",
+            "unscannable"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "unknown"]
+        },
+        "target_path": { "type": ["string", "null"] },
+        "symbol": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

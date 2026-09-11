@@ -1,0 +1,51 @@
+{
+  "name": "dsh-test-insight",
+  "version": "1.0.0-rc.2",
+  "description": "Evidence-backed test plans and reviewable test drafts for DeepSeek Harness.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "main": "./plugin/index.js",
+  "exports": {
+    ".": "./plugin/index.js",
+    "./core": "./src/index.mjs"
+  },
+  "bin": {
+    "dsh-test-insight": "./scripts/test-insight.mjs"
+  },
+  "files": [
+    "plugin",
+    "src",
+    "scripts",
+    "schema",
+    "skills",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "test": "node --test test/smoke.test.mjs test/input.test.mjs test/adapter.test.mjs test/analysis.test.mjs test/report.test.mjs test/cli.test.mjs test/contract.test.mjs test/coverage.test.mjs test/draft-execution.test.mjs test/performance.test.mjs",
+    "test:smoke": "node --test test/smoke.test.mjs",
+    "test:compat": "node test/dsh-compat.test.mjs",
+    "pack:check": "npm pack --dry-run",
+    "release:check": "npm test && npm run pack:check && node --check plugin/index.js && node --check scripts/cli.mjs && node --check src/index.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "dsh-repo-scanner": "^0.1.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-skill-filesystem": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-skill-filesystem": {
+      "optional": true
+    }
+  }
+}

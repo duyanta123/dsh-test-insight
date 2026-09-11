@@ -1,0 +1,14 @@
+{
+  "total": {
+    "lines": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 },
+    "statements": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "branches": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 }
+  },
+  "/repo/src/auth.js": {
+    "lines": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 },
+    "statements": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "branches": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 }
+  }
+}
