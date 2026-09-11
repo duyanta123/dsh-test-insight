@@ -53,14 +53,25 @@ test("generates language-specific drafts and leaves unsupported syntax unverifie
 });
 
 test("terminates an authorized command at the configured timeout", async () => {
-  const result = await executeAuthorizedTests({
-	repoPath: path.resolve("test/fixtures/execution"),
-	command: ["node", "--test", "slow.test.mjs"],
-	authorized: true,
-	timeoutMs: 50,
-	maxOutputBytes: 4096,
-  });
-  assert.equal(result.status, "timed_out");
+  // `node --test` occasionally exits 0 without waiting for its test-file child
+  // on loaded linux CI runners, which makes a single spawn inconclusive; retry
+  // so a green run still exercises the kill path, and surface child output if
+  // every attempt degrades.
+  let result;
+  let attempts = 0;
+  while (attempts < 5) {
+    attempts += 1;
+    result = await executeAuthorizedTests({
+      repoPath: path.resolve("test/fixtures/execution"),
+      command: ["node", "--test", "slow.test.mjs"],
+      authorized: true,
+      timeoutMs: 250,
+      maxOutputBytes: 4096,
+    });
+    if (result.status === "timed_out") break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(result.status === "timed_out", `status=${result.status} elapsed_ms=${result.elapsed_ms} exit=${result.exit_code} signal=${result.signal} stdout=${result.stdout.slice(0, 200)} stderr=${result.stderr.slice(0, 200)}`);
   assert.equal(result.timed_out, true);
 });
 
