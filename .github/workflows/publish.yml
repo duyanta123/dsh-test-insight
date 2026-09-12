@@ -27,6 +27,12 @@ jobs:
       - name: Ensure npm trusted publishing support
         run: npm install --global npm@11.5.1
 
+      - name: Install locked dependencies
+        # The only DSH plugin repo with a runtime dependency (dsh-repo-scanner):
+        # tests import it, so the checks need node_modules even though the
+        # sibling repos' publish checks run without an install step.
+        run: npm ci
+
       - name: Run package checks
         run: |
           node --version
