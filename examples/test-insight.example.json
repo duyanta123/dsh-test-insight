@@ -1,0 +1,253 @@
+{
+  "schema_version": "1.0",
+  "tool": {
+    "name": "dsh-test-insight",
+    "version": "1.0.0-rc.4",
+    "scanner": "0.1.3"
+  },
+  "input": {
+    "mode": "all",
+    "repo_path": "test/fixtures/adapter-repo",
+    "targets": [],
+    "output_format": "both",
+    "generate_drafts": false,
+    "draft_output_path": null,
+    "max_targets": 50,
+    "max_propagation": 3,
+    "include_dirs": [],
+    "exclude_dirs": [],
+    "coverage_path": null,
+    "coverage": {
+      "path": null,
+      "threshold": 0,
+      "format": null
+    },
+    "execution": {
+      "authorized": false,
+      "timeout_ms": 120000,
+      "max_output_bytes": 1048576
+    },
+    "scanner": {
+      "max_depth": 5,
+      "max_files": 100,
+      "max_file_bytes": 10000,
+      "perf_budget_ms": 60000,
+      "cache": false,
+      "parsers": [
+        "heuristic"
+      ]
+    },
+    "git_channel": null,
+    "output_path": "TEST-PLAN.md"
+  },
+  "scope": {
+    "repo_path": "test/fixtures/adapter-repo",
+    "mode": "all",
+    "include_dirs": [],
+    "exclude_dirs": [],
+    "changed_files": [],
+    "impacted_files": [],
+    "working_tree_clean": null,
+    "truncated": false,
+    "file_count": 4,
+    "source_file_count": 2,
+    "test_file_count": 2
+  },
+  "targets": [
+    {
+      "path": "src/auth.js",
+      "priority": "P2",
+      "confidence": "medium",
+      "risk_factors": [
+        "exported API",
+        "reverse dependencies: 2 module(s)"
+      ],
+      "exported_api": true
+    },
+    {
+      "path": "src/server.js",
+      "priority": "P2",
+      "confidence": "medium",
+      "risk_factors": [
+        "exported API",
+        "reverse dependencies: 1 module(s)"
+      ],
+      "exported_api": true
+    }
+  ],
+  "evidence": [
+    {
+      "level": "B",
+      "source": "test_mapping:src/auth.test.js->src/auth.js",
+      "type": "symbol-reference",
+      "test_file": "src/auth.test.js",
+      "target_file": "src/auth.js",
+      "confidence": "high",
+      "symbol_references": [
+        {
+          "source_file": "src/auth.test.js",
+          "target_file": "src/auth.js",
+          "symbol": "authenticate",
+          "kind": "named-import",
+          "line": 1,
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "level": "B",
+      "source": "test_mapping:src/server.spec.js->src/server.js",
+      "type": "symbol-reference",
+      "test_file": "src/server.spec.js",
+      "target_file": "src/server.js",
+      "confidence": "high",
+      "symbol_references": [
+        {
+          "source_file": "src/server.spec.js",
+          "target_file": "src/server.js",
+          "symbol": "serve",
+          "kind": "named-import",
+          "line": 1,
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "gaps": [],
+  "designs": [
+    {
+      "target": "src/auth.js",
+      "priority": "P2",
+      "confidence": "medium",
+      "reason": [
+        "exported API",
+        "reverse dependencies: 2 module(s)"
+      ],
+      "cases": [
+        {
+          "kind": "boundary",
+          "name": "空值、边界值和类型错误",
+          "expected": "空值、缺字段或边界值返回校验错误或明确定义的边界行为",
+          "status": "design_only"
+        },
+        {
+          "kind": "happy_path",
+          "name": "正常输入与主要行为",
+          "expected": "主行为返回预期结果，与公开契约一致",
+          "status": "design_only"
+        }
+      ]
+    },
+    {
+      "target": "src/server.js",
+      "priority": "P2",
+      "confidence": "medium",
+      "reason": [
+        "exported API",
+        "reverse dependencies: 1 module(s)"
+      ],
+      "cases": [
+        {
+          "kind": "boundary",
+          "name": "空值、边界值和类型错误",
+          "expected": "空值、缺字段或边界值返回校验错误或明确定义的边界行为",
+          "status": "design_only"
+        },
+        {
+          "kind": "happy_path",
+          "name": "正常输入与主要行为",
+          "expected": "主行为返回预期结果，与公开契约一致",
+          "status": "design_only"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "未读取 coverage；不产生 A 级覆盖证据。"
+  ],
+  "limits": {
+    "scanner": {
+      "max_depth": 5,
+      "max_files": 100,
+      "max_file_bytes": 10000,
+      "truncated": false,
+      "warnings": []
+    },
+    "max_targets": 50,
+    "max_propagation": 3,
+    "coverage_supported": false,
+    "coverage_path": null,
+    "coverage_format": null,
+    "coverage_threshold": 0,
+    "coverage_below_threshold": []
+  },
+  "timing": {
+    "elapsed_ms": 0,
+    "scanner": null,
+    "performance": {
+      "elapsed_ms": 0,
+      "budget_ms": 60000,
+      "budget_exceeded": false,
+      "scanner": null,
+      "calls": {},
+      "cache": null
+    },
+    "facts": {
+      "test_files": 2,
+      "impacted_files": 0
+    }
+  },
+  "coverage": null,
+  "test_matrix": [
+    {
+      "target": "src/auth.js",
+      "test_files": [
+        "src/auth.test.js"
+      ],
+      "categories": {
+        "happy_path": "static_evidence",
+        "error_path": "unknown",
+        "boundary": "unknown",
+        "integration": "not_applicable",
+        "security": "unknown"
+      },
+      "coverage": null,
+      "evidence_levels": [
+        "B"
+      ]
+    },
+    {
+      "target": "src/server.js",
+      "test_files": [
+        "src/server.spec.js"
+      ],
+      "categories": {
+        "happy_path": "static_evidence",
+        "error_path": "unknown",
+        "boundary": "unknown",
+        "integration": "not_applicable",
+        "security": "not_applicable"
+      },
+      "coverage": null,
+      "evidence_levels": [
+        "B"
+      ]
+    }
+  ],
+  "test_frameworks": [
+    {
+      "name": "node-test",
+      "source": "filename convention: *.test.js / *.spec.js without jest/vitest config",
+      "confidence": "low"
+    }
+  ],
+  "suggested_commands": [
+    {
+      "command": "node --test",
+      "source": "framework-default:node-test",
+      "confidence": "low"
+    }
+  ],
+  "drafts": [],
+  "execution": null
+}

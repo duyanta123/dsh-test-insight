@@ -4,7 +4,7 @@ import { buildTestMapping } from "./mapping.mjs";
 import { buildRiskAnalysis } from "./analysis.mjs";
 import { buildReport } from "./report.mjs";
 import { readCoverage } from "./coverage.mjs";
-import { buildDrafts } from "./drafts.mjs";
+import { buildDrafts, collectDraftContext } from "./drafts.mjs";
 import { executeAuthorizedTests } from "./execution.mjs";
 
 export async function analyze(rawInput, { clock = () => Date.now() } = {}) {
@@ -19,8 +19,19 @@ export async function analyze(rawInput, { clock = () => Date.now() } = {}) {
 	changeFacts: facts.changeFacts,
 	  coverage,
   });
+  // Draft context and draft generation must see the same report: the merged
+  // targets (scanner facts + analysis targets) drive collectDraftContext's
+  // adjacent-test/export-style reads; the raw scanner report has no targets
+  // and would leave every draft's adjacent_test null and export_style unknown.
+  const draftReport = { ...facts.report, targets: analysis.targets };
   const drafts = input.generateDrafts
-	? buildDrafts({ ...facts.report, targets: analysis.targets }, input)
+	? buildDrafts(
+		draftReport,
+		input,
+		// Plan §7.3: read manifest/framework/adjacent-test/export-style context
+		// before generating draft code. Best-effort; failures stay null.
+		await collectDraftContext(draftReport, input, mapping),
+	  )
 	: [];
   const execution = input.execution.authorized
 	? await executeAuthorizedTests({

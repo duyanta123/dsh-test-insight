@@ -80,6 +80,32 @@
       "type": ["object", "null"],
       "additionalProperties": true
     },
+    "test_frameworks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "source", "confidence"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string" },
+          "source": { "type": "string" },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "unknown"] }
+        }
+      }
+    },
+    "suggested_commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "source", "confidence"],
+        "additionalProperties": true,
+        "properties": {
+          "command": { "type": ["string", "array"] },
+          "source": { "type": "string" },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low", "unknown"] }
+        }
+      }
+    },
     "test_matrix": {
       "type": "array",
       "items": {

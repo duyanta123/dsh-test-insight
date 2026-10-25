@@ -8,11 +8,11 @@
 | 项 | 值 |
 |---|---|
 | 类型 | 测试型（仓库事实 → 测试计划与测试草稿） |
-| 当前版本 | 1.0.0-rc.3 |
-| 分发状态 | 已转正（2026-09-11，github.com/duyanta123/dsh-test-insight）；awesome 收录条目待建 |
+| 当前版本 | 1.0.0-rc.4 |
+| 分发状态 | 已转正（2026-09-11，github.com/duyanta123/dsh-test-insight）；awesome 已收录（2026-09-13，[awesome-dsh-plugin/awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 条目 `data/plugins/duyanta123__dsh-test-insight.yml`，分类 dev） |
 | 运行时 | 零构建 ESM，独立 CLI/库 Node >=20.11；DSH 宿主 >=22.19 |
 | 核心依赖 | npm `dsh-repo-scanner`（唯一带 dependencies 的插件仓；不复制 scanner 源码） |
-| 核心模块 | `src/`（engine / input / analysis / mapping / coverage / drafts / execution / report / scanner-adapter / redaction）+ `scripts/cli.mjs` |
+| 核心模块 | `src/`（engine / input / analysis / mapping / frameworks / coverage / drafts / execution / output-security / report / scanner-adapter / redaction）+ `scripts/cli.mjs` |
 
 ## 2. 目录结构与职责
 
@@ -26,20 +26,24 @@ dsh-test-insight/
 │   ├── engine.mjs            # analyze() 库入口（normalize → facts → mapping → analysis → report）
 │   ├── input.mjs             # all/change/target 输入归一化与三条 Git 通道
 │   ├── analysis.mjs          # 证据等级、缺口、风险排序、测试矩阵
-│   ├── drafts.mjs            # 隔离草稿（默认 .dsh/test-insight/drafts，原子写入）
+│   ├── mapping.mjs           # 测试 ↔ 源码映射（import/同名/镜像路径/名称包含 + Go *_test.go 补充）
+│   ├── frameworks.mjs        # 测试框架与运行命令识别（保留 source/confidence）
+│   ├── drafts.mjs            # 隔离草稿（默认 .dsh/test-insight/drafts，原子写入，读取 manifest/相邻测试上下文）
 │   ├── execution.mjs         # 双重授权的 allowlist 测试执行
-│   └── ...                   # mapping / coverage / report / scanner-adapter / redaction / errors
+│   ├── output-security.mjs   # 符号链接与路径穿越检查（报告/草稿共用）
+│   └── ...                   # coverage / report / scanner-adapter / redaction / errors
 ├── scripts/cli.mjs           # CLI 实现（bin 指向 scripts/test-insight.mjs）
 ├── schema/test-insight.schema.json        # 报告 JSON schema
+├── examples/test-insight.example.json     # 完整示例报告（快照测试保障）
 ├── docs/RELEASE-CHECKLIST.md # 发布前三段式检查清单
-└── test/                     # 10 个测试文件 + dsh-compat 门禁 + fixtures
+└── test/                     # 14 个测试文件 + dsh-compat 门禁 + fixtures（adapter/python/go/entry 仓库、coverage、execution）
 ```
 
 ## 3. CI 与测试门禁
 
-- **独立回归**：`npm test`，10 个测试文件（smoke / input / adapter / analysis / report / cli / contract / coverage / draft-execution / performance）。
+- **独立回归**：`npm test`，14 个测试文件（smoke / input / adapter / mapping / analysis / report / cli / contract / coverage / draft-execution / output-security / cross-platform / snapshot / performance）。
 - **发布自检**：`npm run release:check` = test + `npm run pack:check` + 三处 `node --check`（plugin/index.js、scripts/cli.mjs、src/index.mjs）。
-- **DSH 宿主兼容**：`npm run test:compat` 固定 `@deepseek-ai/dsh@0.1.5-rc.2`，要求 Node >=22.19，执行隔离 profile 的 add、dump-config 和有限时长启动。
+- **DSH 宿主兼容**：`npm run test:compat` 固定 `@deepseek-ai/dsh@0.2.1-rc.2`，要求 Node >=22.19，执行隔离 profile 的 add、dump-config 和有限时长启动。
 - **GitHub Actions**：ubuntu + windows + macos × Node 20.11/22 + 包级 smoke；DSH compat Windows/Ubuntu × Node 22.19。
 - **组合验证夹具**：`.ci/dsh-host` 现场生成（安装工件不入库，`.gitignore` 排除）。
 
@@ -70,9 +74,9 @@ dsh-test-insight/
 - 草稿默认写入 `.dsh/test-insight/drafts`，原子写入 + 覆盖保护；输出不覆盖已有文件（`--force` 除外）。这些行为不允许默认关闭。
 
 ### 5.5 元数据与打包
-- 改动对外描述时同步：`README.md` / `README.zh-CN.md` 首段（双语，结构一致）、`package.json` 的 `description`/`keywords`、awesome 条目（建立后）。
+- 改动对外描述时同步：`README.md` / `README.zh-CN.md` 首段（双语，结构一致）、`package.json` 的 `description`/`keywords`、awesome 条目（[awesome-dsh-plugin/awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 的 `data/plugins/duyanta123__dsh-test-insight.yml`）。
 - 发版时同步双语 README 的 version 徽章与安装示例 tag。
-- `files` 白名单已含 `plugin/`、`src/`、`scripts/`、`schema/`、`skills/`、`docs/`、双语 `README.md`/`README.zh-CN.md`、`CHANGELOG.md`、`LICENSE`、`cordis.patch.yml`——`PLUGIN-MAINTENANCE.md` 与开发计划为仓库维护资产，不在 npm 包内。
+- `files` 白名单已含 `plugin/`、`src/`、`scripts/`、`schema/`、`skills/`、`docs/`、`examples/`、双语 `README.md`/`README.zh-CN.md`、`CHANGELOG.md`、`LICENSE`、`cordis.patch.yml`——`PLUGIN-MAINTENANCE.md` 与开发计划为仓库维护资产，不在 npm 包内。
 
 ## 6. 版本与发布节奏
 
@@ -81,9 +85,9 @@ dsh-test-insight/
 
 ## 7. 发布前清单
 
-- [ ] `npm test` 全绿（10 个测试文件）
+- [ ] `npm test` 全绿（14 个测试文件）
 - [ ] `npm run release:check` 通过
-- [ ] `npm run test:compat` 通过（DSH 0.1.5-rc.2 / Node 22.19+）
+- [ ] `npm run test:compat` 通过（DSH 0.2.1-rc.2 / Node 22.19+）
 - [ ] `CHANGELOG.md` 已归并 `Unreleased`
 - [ ] `package.json` version 与 tag 一致
 - [ ] 双语 README 的 version 徽章与安装示例 tag 已同步

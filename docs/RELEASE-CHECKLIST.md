@@ -16,7 +16,7 @@
 
 ## DSH 组合验证
 
-- [ ] 在可安装的 `@deepseek-ai/dsh@0.1.5-rc.2`（Node.js >=22.19）环境加载 bundle。
+- [ ] 在可安装的 `@deepseek-ai/dsh@0.2.1-rc.2`（Node.js >=22.19）环境加载 bundle。
 - [ ] 确认 `inject: ["skills"]` 与 `test-insight-runbook` 技能可见。
 - [ ] 确认宿主可观察写入路径用于会话产物；`FS_NOT_OBSERVED` 原样透传。
 - [ ] alpha 预发布验证（如执行）单独记录，不纳入默认 CI 门禁。

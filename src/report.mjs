@@ -1,8 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { redactValue } from "./redaction.mjs";
 import { ERROR_CODES, EXIT_CODES, contractError, InsightError } from "./errors.mjs";
+import { assertNoSymbolicLink } from "./output-security.mjs";
+import { detectTestFrameworks } from "./frameworks.mjs";
+import { commandFromRunMethods } from "./execution.mjs";
 import { compareText } from "./ordering.mjs";
+
+const packageInfo = createRequire(import.meta.url)("../package.json");
 
 export const REPORT_SCHEMA_VERSION = "1.0";
 
@@ -88,6 +94,13 @@ function designForTarget(target, gaps) {
   if (targetGaps.some((gap) => gap.type === "error_path_untested")) kinds.add("error_path");
   if (targetGaps.some((gap) => gap.type === "public_api_untested" || target.exported_api)) kinds.add("contract");
   if (targetGaps.some((gap) => gap.type === "integration_path_untested")) kinds.add("integration");
+  const expectedFor = {
+	happy_path: "主行为返回预期结果，与公开契约一致",
+	boundary: "空值、缺字段或边界值返回校验错误或明确定义的边界行为",
+	error_path: "异常被拒绝且不泄露敏感原因，超时与重试行为符合约定",
+	integration: "入口到目标模块的链路返回预期响应，失败路径可观察",
+	contract: "公共导出、错误码或响应 schema 与预期契约一致",
+  };
   return {
 	target: target.symbol ? `${target.path}:${target.symbol}` : target.path,
 	priority: target.priority,
@@ -102,6 +115,7 @@ function designForTarget(target, gaps) {
 		integration: "入口到目标模块的集成路径",
 		contract: "公共导出、错误码或响应契约",
 	  }[kind] || kind,
+	  expected: expectedFor[kind] || "预期行为需人工确认",
 	  status: "design_only",
 	})),
   };
@@ -120,11 +134,19 @@ export function buildReport({ input, report, testFacts, changeFacts, mapping, an
 	...(report?.git?.warnings || []).map(warningText),
   ];
   const designs = (analysis?.targets || []).map((target) => designForTarget(target, analysis?.gaps || []));
+  const frameworks = detectTestFrameworks(report);
+  const suggestedCommands = (frameworks.commands || [])
+	.map((candidate) => {
+	  if (candidate.source.startsWith("scanner:run_methods")) return candidate;
+	  const normalized = commandFromRunMethods([candidate.command]);
+	  return normalized ? { ...candidate, command: normalized.join(" ") } : null;
+	})
+	.filter(Boolean);
   const result = {
 	schema_version: REPORT_SCHEMA_VERSION,
 	tool: {
 	  name: "dsh-test-insight",
-	  version: "0.1.0",
+	  version: packageInfo.version,
 	  scanner: report?.tool?.version || null,
 	},
 	input: inputForReport(input),
@@ -160,6 +182,8 @@ export function buildReport({ input, report, testFacts, changeFacts, mapping, an
 	},
 	coverage: coverage || null,
 	test_matrix: analysis?.matrix || [],
+	test_frameworks: frameworks.frameworks,
+	suggested_commands: suggestedCommands,
 	drafts: (analysis?.drafts || []).map(draftMetadata),
 	execution: analysis?.execution || null,
   };
@@ -219,7 +243,7 @@ export function renderMarkdown(report) {
 	? report.gaps.map((gap) => `| ${gap.priority} | ${gap.type} | ${gap.target_path || "-"}${gap.symbol ? `:${gap.symbol}` : ""} | ${gap.confidence} | ${gap.reason || "-"} |`).join("\n")
 	: "| - | - | - | - | 未发现缺口 |";
   const designSections = report.designs.length > 0
-	? report.designs.map((design) => `### ${design.priority} ${design.target}\n\n[推断] ${(design.reason || []).join("；") || "按目标类型生成基础设计"}\n\n${design.cases.map((item) => `- [建议] ${item.name}（${item.kind}）`).join("\n")}`).join("\n\n")
+	? report.designs.map((design) => `### ${design.priority} ${design.target}\n\n[推断] ${(design.reason || []).join("；") || "按目标类型生成基础设计"}\n\n${design.cases.map((item) => `- [建议] ${item.name}（${item.kind}）→ 预期：${item.expected || "待人工确认"}`).join("\n")}`).join("\n\n")
 	: "[待确认] 没有可生成设计的目标。";
   const matrixRows = report.test_matrix?.length > 0
 	? report.test_matrix.map((row) => `| ${row.target} | ${row.categories.happy_path} | ${row.categories.error_path} | ${row.categories.boundary} | ${row.categories.integration} | ${row.categories.security} |`).join("\n")
@@ -244,7 +268,7 @@ export function renderMarkdown(report) {
 	"",
 	`- [事实] 文件 ${report.scope.file_count} 个，源码 ${report.scope.source_file_count} 个，测试 ${report.scope.test_file_count} 个。`,
 	`- [事实] 扫描截断：${report.scope.truncated ? "是" : "否"}；工作区干净：${report.scope.working_tree_clean === null ? "不可判定" : report.scope.working_tree_clean ? "是" : "否"}。`,
-	`- [待确认] coverage：${report.limits.coverage_supported ? "已读取" : "未读取；v0.1 不产生 A 级覆盖证据"}。`,
+	`- [待确认] coverage：${report.limits.coverage_supported ? "已读取" : "未读取；不产生 A 级覆盖证据"}。`,
 	`- [事实] 端到端耗时：${report.timing.elapsed_ms} ms。`,
 	"",
 	"## 3. 测试目标与风险",
@@ -279,14 +303,20 @@ export function renderMarkdown(report) {
 	"",
 	"## 7. 测试执行建议",
 	"",
-	// 保留执行命令的结构化展示（脱敏前），仅确认上下文
+	// 命令只展示、不自动执行；授权执行走显式 --execute-tests 白名单流程。
 	report.execution
 	  ? `[事实] 已按显式授权执行白名单命令：${report.execution.command.join(" ")}；状态：${report.execution.status}；本结果不替代人工审查。`
-	  : "[建议] 先审查 P0/P1 目标，再由人工确认测试框架、fixture、环境变量和断言；默认不执行目标仓库命令。",
+	  : (report.suggested_commands || []).length > 0
+		? `[建议] 从 run_methods/框架识别得到的候选测试命令（仅展示，不自动执行）：\n${report.suggested_commands.map((item) => `- \`${item.command}\`（来源：${item.source}，置信度：${item.confidence}）`).join("\n")}\n\n[建议] 先审查 P0/P1 目标，再由人工确认测试框架、fixture、环境变量和断言。`
+		: "[建议] 先审查 P0/P1 目标，再由人工确认测试框架、fixture、环境变量和断言；默认不执行目标仓库命令。",
 	"",
 	"## 8. 测试草稿",
 	"",
-	report.input.generate_drafts ? "[待确认] 已请求草稿生成，但 v0.1 仅输出设计，不自动写入现有测试目录。" : "[事实] 未请求生成独立测试草稿。",
+	report.input.generate_drafts
+	  ? (report.drafts || []).length > 0
+		? `[待确认] 已生成 ${report.drafts.length} 份独立草稿，仅供人工审查；草稿不写入现有测试目录，且不构成“草稿已通过”的证据。`
+		: "[待确认] 已请求草稿生成，但本次分析没有可生成草稿的目标。"
+	  : "[事实] 未请求生成独立测试草稿。",
 	"",
 	"## 9. 文档与维护建议",
 	"",
@@ -334,6 +364,8 @@ async function pathExists(value) {
 
 async function atomicWrite(filePath, content, force) {
   const resolved = path.resolve(filePath);
+  // Plan §8: reject paths that traverse a symbolic link before any write.
+  await assertNoSymbolicLink(resolved, "report");
   if (!force && await pathExists(resolved)) {
 	throw new InsightError(`output exists; use --force to overwrite: ${resolved}`, {
 	  code: ERROR_CODES.INVALID_OUTPUT,
@@ -341,9 +373,11 @@ async function atomicWrite(filePath, content, force) {
 	  details: { path: resolved },
 	});
   }
-  await fs.mkdir(path.dirname(resolved), { recursive: true });
+  // mkdir failures (e.g. the parent path is an existing file) must surface as
+  // OUTPUT_FAILED (exit 3), not as a raw SCAN_FAILED.
   const temp = `${resolved}.${process.pid}.${Date.now()}.tmp`;
   try {
+	await fs.mkdir(path.dirname(resolved), { recursive: true });
 	await fs.writeFile(temp, content, "utf8");
 	await fs.rename(temp, resolved);
   } catch (error) {

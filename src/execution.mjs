@@ -134,7 +134,7 @@ export function normalizeAuthorizedCommand(command) {
   });
 }
 
-function commandFromRunMethods(runMethods = []) {
+export function commandFromRunMethods(runMethods = []) {
   for (const method of runMethods) {
 	const candidate = typeof method === "string" ? method : method?.command || method?.run;
 	if (!candidate) continue;

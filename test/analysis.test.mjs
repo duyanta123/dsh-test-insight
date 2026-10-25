@@ -88,3 +88,83 @@ test("sorts targets by risk and keeps source evidence boundaries", () => {
   assert.ok(result.gaps.every((gap) => ["P0", "P1", "P2"].includes(gap.priority)));
   assert.equal(buildTargets(report, mapping, { mode: "all", maxTargets: 1 }, null, []).length, 1);
 });
+
+function coverageFixture(percent, threshold) {
+  const metricsFor = (path) => ({
+	path,
+	metrics: {
+	  lines: { found: 10, hit: Math.round(percent / 10), percent },
+	  branches: { found: 0, hit: 0, percent: null },
+	  functions: { found: 0, hit: 0, percent: null },
+	  statements: { found: 10, hit: Math.round(percent / 10), percent },
+	},
+  });
+  return {
+	format: "lcov",
+	path: "lcov.info",
+	threshold,
+	files: [metricsFor("src/untested.js"), metricsFor("src/auth.js")],
+	totals: { lines: { found: 20, hit: Math.round((percent / 10) * 2), percent }, branches: { found: 0, hit: 0, percent: null }, functions: { found: 0, hit: 0, percent: null }, statements: { found: 20, hit: Math.round((percent / 10) * 2), percent } },
+	below_threshold: [],
+	fresh: true,
+  };
+}
+
+test("coverage below threshold gaps apply to impacted files, not only direct changes", () => {
+  const report = reportFixture();
+  const changeFacts = {
+	changed_files: [{ status: "modified", new_path: "src/auth.js" }],
+	impacted_files: [{ path: "src/untested.js", via: "src/auth.js", depth: 1 }],
+	impacted_modules: [],
+	impacted_symbols: [],
+	warnings: [],
+  };
+  const input = { mode: "change", maxPropagation: 3 };
+  const gaps = buildGaps(report, mapping, input, changeFacts, coverageFixture(50, 80));
+  const impactedGap = gaps.find((gap) => gap.type === "coverage_below_threshold" && gap.target_path === "src/untested.js");
+  assert.ok(impactedGap, "non-direct impacted file must produce a coverage gap");
+  assert.equal(impactedGap.priority, "P2");
+  const directGap = gaps.find((gap) => gap.type === "coverage_below_threshold" && gap.target_path === "src/auth.js");
+  assert.ok(directGap, "directly changed file must produce a coverage gap");
+  assert.equal(directGap.priority, "P1");
+});
+
+test("risk scoring includes reverse dependencies, cycles, and structural factors", () => {
+  const report = reportFixture();
+  report.files.push(
+	{ path: "src/hub.js", kind: "source" },
+	{ path: "src/one.js", kind: "source" },
+	{ path: "src/two.js", kind: "source" },
+	{ path: "src/big.js", kind: "source" },
+	{ path: "src/cyc-a.js", kind: "source" },
+	{ path: "src/cyc-b.js", kind: "source" },
+  );
+  report._files.push(
+	{ path: "src/hub.js", _text: "export const hub = 1;" },
+	{ path: "src/big.js", _text: "export const big = 1;" },
+  );
+  report.symbols.push(
+	{ name: "hub", path: "src/hub.js", visibility: "exported" },
+	{ name: "big", path: "src/big.js", kind: "function", start_line: 1, end_line: 120, visibility: "exported" },
+	{ name: "ca", path: "src/cyc-a.js", visibility: "exported" },
+	{ name: "cb", path: "src/cyc-b.js", visibility: "exported" },
+  );
+  report.dependencies = {
+	internal: [
+	  { source: "src/one.js", target: "src/hub.js" },
+	  { source: "src/two.js", target: "src/hub.js" },
+	  { source: "src/auth.js", target: "src/hub.js" },
+	  { source: "src/cyc-a.js", target: "src/cyc-b.js" },
+	  { source: "src/cyc-b.js", target: "src/cyc-a.js" },
+	],
+	external: [],
+  };
+  const targets = buildTargets(report, mapping, { mode: "all", maxTargets: 50 }, null, []);
+  const byPath = new Map(targets.map((target) => [target.path, target]));
+  const hub = byPath.get("src/hub.js");
+  assert.ok(hub.risk_factors.includes("reverse dependencies: 3 modules"), JSON.stringify(hub.risk_factors));
+  const cycleA = byPath.get("src/cyc-a.js");
+  assert.ok(cycleA.risk_factors.includes("dependency cycle"), JSON.stringify(cycleA.risk_factors));
+  const big = byPath.get("src/big.js");
+  assert.ok(big.risk_factors.some((factor) => factor.startsWith("long function (")) , JSON.stringify(big.risk_factors));
+});

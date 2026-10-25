@@ -6,7 +6,7 @@
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-plugin-4c1d95)](https://github.com/topics/dsh-plugin)
 [![CI](https://github.com/duyanta123/dsh-test-insight/actions/workflows/ci.yml/badge.svg)](https://github.com/duyanta123/dsh-test-insight/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/badge/npm-dsh--test--insight-blue)](https://www.npmjs.com/package/dsh-test-insight)
-[![version](https://img.shields.io/badge/version-1.0.0--rc.2-green)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.0.0--rc.4-green)](CHANGELOG.md)
 
 面向 DeepSeek Harness 的测试洞察插件：基于仓库事实和变更风险生成**可审查的测试计划**（TEST-PLAN.md）与**隔离的测试草稿**（review-only）。
 
@@ -32,7 +32,7 @@ dsh-test-insight 处理「仓库事实 + 变更风险 → 测试计划与测试�
 作为 DSH 插件：
 
 ```bash
-dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.2"
+dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.4"
 ```
 
 或从 npm 安装（作为库或独立 CLI 使用）：
@@ -41,7 +41,7 @@ dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.2"
 npm install dsh-test-insight
 ```
 
-兼容性分层：独立 CLI / 库要求 Node.js >= 20.11；作为 DSH 0.1.5-rc.2 插件验证统一使用 Node.js >= 22.19。运行 `npm run test:compat` 可执行隔离 profile 的 add、dump-config 和启动 smoke test。
+兼容性分层：独立 CLI / 库要求 Node.js >= 20.11；作为 DSH 0.2.1-rc.2 插件验证统一使用 Node.js >= 22.19。运行 `npm run test:compat` 可执行隔离 profile 的 add、dump-config 和启动 smoke test。
 
 安装后重启 `dsh --profile web`，通过 `test-insight-runbook` 技能使用。
 
@@ -79,6 +79,7 @@ const report = await analyze({ repoPath: '.', mode: 'all' });
 | --- | --- | --- |
 | `<repo>` | - | 目标仓库路径 |
 | `--mode all\|change\|target` | 必填 | 分析模式：全仓 / 变更驱动 / 定向 |
+| `--all` | - | `--mode all` 的简写 |
 | `--target <path[:symbol]>` | - | target 模式输入，可重复 |
 | `--working-tree` | - | change 模式输入：`git status --porcelain -uall`（与 `--diff`/`--base` 互斥） |
 | `--diff <file>` / `--base <ref>` / `--head <ref>` | - | change 模式输入：diff 文本或 Git 引用 |
@@ -98,6 +99,8 @@ const report = await analyze({ repoPath: '.', mode: 'all' });
 | `TEST-PLAN.md` | 结构化测试计划：测试映射、证据等级、风险目标与缺口 |
 | `test-insight.json` | 机器可读报告（schema 见 [schema/test-insight.schema.json](schema/test-insight.schema.json)），记录共享缓存、冷/热命中、端到端性能预算与实际 scanner 版本 |
 | 测试草稿目录 | 隔离的 review-only 草稿（默认 `.dsh/test-insight/drafts`），原子写入 + 覆盖保护，不覆盖现有测试 |
+
+报告同时记录识别出的测试框架与候选测试命令（`test_frameworks` / `suggested_commands`，均保留 `source` 与 `confidence`）；`TEST-PLAN.md` 第 7 节将其作为仅展示的建议输出。完整示例报告见 [examples/test-insight.example.json](examples/test-insight.example.json)（由 `test/snapshot.test.mjs` 快照测试保障）。
 
 ## 安全边界
 
@@ -124,6 +127,7 @@ Session format V3 迁移不可逆，属宿主行为；升级宿主前请先备�
 ## 文档
 
 - [schema/test-insight.schema.json](schema/test-insight.schema.json) — 报告 JSON schema
+- [examples/test-insight.example.json](examples/test-insight.example.json) — 完整示例报告（快照测试保障）
 - [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md) — 发布前三段式检查清单
 - [CHANGELOG.md](CHANGELOG.md) — 版本变更记录
 - [PLUGIN-MAINTENANCE.md](PLUGIN-MAINTENANCE.md) — 本仓维护规则

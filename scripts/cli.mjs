@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { analyze } from "../src/engine.mjs";
+import { analyze as defaultAnalyze } from "../src/engine.mjs";
 import { ERROR_CODES, EXIT_CODES, InsightError, invalidInput } from "../src/errors.mjs";
 import { writeReportFiles } from "../src/report.mjs";
 import { writeDraftObjects } from "../src/drafts.mjs";
@@ -185,6 +185,7 @@ export function printHelp(stream = process.stdout) {
   stream.write("Usage: dsh-test-insight <repo> --mode all|change|target [options]\n");
   stream.write("Analyze repository facts and write TEST-PLAN.md/test-insight.json without running target commands.\n\n");
   stream.write("Options:\n");
+  stream.write("  --all                          shortcut for --mode all (whole-repo analysis)\n");
   stream.write("  --working-tree                 change mode from git status --porcelain -uall\n");
   stream.write("  --base <ref> --head <ref>      change mode from git diff <base>...<head>\n");
   stream.write("  --diff <path>                  read a patch file without invoking git\n");
@@ -288,7 +289,7 @@ function asInsightError(error) {
   });
 }
 
-export async function main(argv = process.argv.slice(2), io = { stdout: process.stdout, stderr: process.stderr }) {
+export async function main(argv = process.argv.slice(2), io = { stdout: process.stdout, stderr: process.stderr }, { analyze = defaultAnalyze } = {}) {
   try {
 	const options = parseArgs(argv);
 	if (options.help) {

@@ -1,0 +1,6 @@
+{
+  "name": "entry-repo",
+  "version": "1.0.0",
+  "bin": { "entry-repo": "bin/cli.js" },
+  "scripts": { "test": "node --test test/" }
+}

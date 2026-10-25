@@ -71,6 +71,64 @@ test("builds one validated report for JSON and Markdown", () => {
   assert.ok(!JSON.stringify(report).includes("should-not-appear"));
 });
 
+test("tool version matches the package version instead of a hardcoded number", async () => {
+  const value = fixture();
+  const report = buildReport({ ...value, testFacts: null, changeFacts: null, mapping: null });
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(report.tool.version, packageJson.version);
+});
+
+test("design cases carry expected outcomes per plan §7.1", () => {
+  const value = fixture();
+  const report = buildReport({ ...value, testFacts: null, changeFacts: null, mapping: null });
+  assert.ok(report.designs.length > 0);
+  for (const design of report.designs) {
+	assert.ok(design.cases.length > 0);
+	for (const testCase of design.cases) {
+	  assert.equal(typeof testCase.expected, "string");
+	  assert.ok(testCase.expected.length > 0);
+	}
+  }
+  assert.match(renderMarkdown(report), /预期：/);
+});
+
+test("recognizes the node test framework and suggests its command with source", () => {
+  const value = fixture();
+  const report = buildReport({ ...value, testFacts: null, changeFacts: null, mapping: null });
+  assert.ok(report.test_frameworks.some((item) => item.name === "node-test" && item.confidence === "low"));
+  const suggested = report.suggested_commands.find((item) => item.command === "node --test");
+  assert.ok(suggested);
+  assert.equal(suggested.source, "framework-default:node-test");
+  assert.equal(suggested.confidence, "low");
+  const markdown = renderMarkdown(report);
+  assert.match(markdown, /node --test/);
+  assert.match(markdown, /framework-default:node-test/);
+});
+
+test("draft section no longer claims v0.1 design-only behavior", () => {
+  const value = fixture();
+  const report = buildReport({
+	...value,
+	input: { ...value.input, generateDrafts: true },
+	testFacts: null,
+	changeFacts: null,
+	mapping: null,
+  });
+  const markdown = renderMarkdown(report);
+  assert.ok(!markdown.includes("v0.1"));
+  assert.match(markdown, /已请求草稿生成，但本次分析没有可生成草稿的目标/);
+  const withDrafts = buildReport({
+	...value,
+	input: { ...value.input, generateDrafts: true },
+	analysis: { ...value.analysis, drafts: [{ target: "src/a.js", path: "d/01-a.test.js", status: "draft_only", review_required: true, syntax: { status: "heuristic_pass" } }] },
+	testFacts: null,
+	changeFacts: null,
+	mapping: null,
+  });
+  assert.match(renderMarkdown(withDrafts), /已生成 1 份独立草稿/);
+  assert.match(renderMarkdown(withDrafts), /不构成“草稿已通过”的证据/);
+});
+
 test("report keeps draft source out of the JSON contract", () => {
   const value = fixture();
   const report = buildReport({

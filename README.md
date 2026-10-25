@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
 [![DeepSeek Harness](https://img.shields.io/badge/DeepSeek%20Harness-plugin-4c1d95)](https://github.com/topics/dsh-plugin)
 [![CI](https://github.com/duyanta123/dsh-test-insight/actions/workflows/ci.yml/badge.svg)](https://github.com/duyanta123/dsh-test-insight/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/badge/npm-dsh--test--insight-blue)](https://www.npmjs.com/package/dsh-test-insight)
-[![version](https://img.shields.io/badge/version-1.0.0--rc.2-green)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.0.0--rc.4-green)](CHANGELOG.md)
 
 A test-insight plugin for DeepSeek Harness: builds **reviewable test plans** (TEST-PLAN.md) and **isolated test drafts** (review-only) from repository facts and change risk.
 
@@ -32,7 +32,7 @@ Boundaries:
 As a DSH plugin:
 
 ```bash
-dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.3"
+dsh plugin --profile web add "github:duyanta123/dsh-test-insight#v1.0.0-rc.4"
 ```
 
 Or from npm (as a library or standalone CLI):
@@ -41,7 +41,7 @@ Or from npm (as a library or standalone CLI):
 npm install dsh-test-insight
 ```
 
-Compatibility tiers: the standalone CLI / library requires Node.js >= 20.11; as a DSH 0.1.5-rc.2 plugin it is verified with Node.js >= 22.19. Run `npm run test:compat` to execute an isolated-profile add, dump-config, and startup smoke test.
+Compatibility tiers: the standalone CLI / library requires Node.js >= 20.11; as a DSH 0.2.1-rc.2 plugin it is verified with Node.js >= 22.19. Run `npm run test:compat` to execute an isolated-profile add, dump-config, and startup smoke test.
 
 After installing, restart `dsh --profile web` and use it through the `test-insight-runbook` skill.
 
@@ -79,6 +79,7 @@ const report = await analyze({ repoPath: '.', mode: 'all' });
 | --- | --- | --- |
 | `<repo>` | - | Target repository path |
 | `--mode all\|change\|target` | required | Analysis mode: whole-repo / change-driven / targeted |
+| `--all` | - | Shortcut for `--mode all` |
 | `--target <path[:symbol]>` | - | Target-mode input, repeatable |
 | `--working-tree` | - | Change-mode input: `git status --porcelain -uall` (mutually exclusive with `--diff`/`--base`) |
 | `--diff <file>` / `--base <ref>` / `--head <ref>` | - | Change-mode inputs: diff text or Git refs |
@@ -98,6 +99,8 @@ const report = await analyze({ repoPath: '.', mode: 'all' });
 | `TEST-PLAN.md` | Structured test plan: test mapping, evidence levels, risk targets and gaps |
 | `test-insight.json` | Machine-readable report (schema in [schema/test-insight.schema.json](schema/test-insight.schema.json)), records shared cache, cold/hot hits, end-to-end performance budget, and the actual scanner version |
 | Draft directory | Isolated review-only drafts (default `.dsh/test-insight/drafts`), atomic writes with overwrite protection; never overwrites existing tests |
+
+Reports also record recognized test frameworks and candidate test commands (`test_frameworks` / `suggested_commands`, each with `source` and `confidence`); §7 of `TEST-PLAN.md` shows them as display-only suggestions. A complete example report lives at [examples/test-insight.example.json](examples/test-insight.example.json) (snapshot-tested in `test/snapshot.test.mjs`).
 
 ## Safety Boundaries
 
@@ -124,6 +127,7 @@ The Session format V3 migration is irreversible and is host behavior; back up se
 ## Documentation
 
 - [schema/test-insight.schema.json](schema/test-insight.schema.json) — report JSON schema
+- [examples/test-insight.example.json](examples/test-insight.example.json) — complete example report (snapshot-tested)
 - [docs/RELEASE-CHECKLIST.md](docs/RELEASE-CHECKLIST.md) — three-stage pre-release checklist
 - [CHANGELOG.md](CHANGELOG.md) — release notes
 - [PLUGIN-MAINTENANCE.md](PLUGIN-MAINTENANCE.md) — repo maintenance runbook

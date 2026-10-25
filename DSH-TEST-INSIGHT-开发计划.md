@@ -6,11 +6,11 @@
 
 ## 0. 官方 DeepSeek Harness 现状基线
 
-本计划依据本地官方 DSH 仓库与已发布生态最新状态修订（初版 2026-09-06，2026-09-11 随宿主基线迁移更新）。上游 GitHub 最新预发布为 `dsh-v0.1.3-alpha.1`（仅作观察与可选验证，不作为默认可复现基线）。本计划的“兼容/CI 门禁基线”自 2026-09-11 起固定为 `@deepseek-ai/dsh@0.1.5-rc.2`（此前为 `0.1.2-rc.1`，历史记录见各版 CHANGELOG）。scanner 通过 npm 包安装，安装命令固定为 `npm i dsh-repo-scanner`，具体版本以安装生成的 lockfile 和运行时 `tool.version` 为准：
+本计划依据本地官方 DSH 仓库与已发布生态最新状态修订（初版 2026-09-06，2026-09-11 随宿主基线迁移更新，2026-10-24 随宿主 npm latest 迁移更新）。宿主 npm dist-tags 当前为 `latest = @deepseek-ai/dsh@0.2.1-rc.2`（`next` 为 0.2.1-rc.3、`alpha` 为 0.2.1-alpha.5）。本计划的“兼容/CI 门禁基线”自 2026-10-24 起固定为 `@deepseek-ai/dsh@0.2.1-rc.2`（此前为 `0.1.5-rc.2`，更早为 `0.1.2-rc.1`，历史记录见各版 CHANGELOG）。scanner 通过 npm 包安装，安装命令固定为 `npm i dsh-repo-scanner`，具体版本以安装生成的 lockfile 和运行时 `tool.version` 为准：
 
-- DSH 可执行/安装兼容基线 `@deepseek-ai/dsh@0.1.5-rc.2`（npm，2026-09-11 起）：
+- DSH 可执行/安装兼容基线 `@deepseek-ai/dsh@0.2.1-rc.2`（npm latest，2026-10-24 起）：
   - 宿主运行要求 Node `>=22.19`；本插件的 `test:compat`、CI 组合验证、发布前 smoke test 固定使用该版本。
-- DSH GitHub 预发布 `dsh-v0.1.3-alpha.1`（2026-09，观察/可选验证）：
+- DSH GitHub 预发布 `dsh-v0.1.3-alpha.1`（2026-09 历史观察，已被 npm 0.1.5+ 系列取代，仅存档）：
   - 所有出站网络请求遵循启动环境的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY`，企业代理环境下的插件安装与 CI 可用。
   - Windows：盘符根目录 Workspace 的路径分隔符与绝对路径校验已修复；本地非终端子进程不再弹出控制台窗口。
   - 统一未观察写入与编辑失败的 `FS_NOT_OBSERVED` 结构化诊断（保留文件路径与原始原因）；插件在会话内落盘必须走宿主可观察的文件写入路径。
@@ -589,8 +589,8 @@ Phase 0 当前进度：
 - [x] 执行 `npm i dsh-repo-scanner`，生成 `package-lock.json` 并确认 `scanRepository`、`getTestInsightFacts`、`getChangeImpactFacts` 均可导入。
 - [x] 完成 4 个最小 smoke test：package metadata、plugin metadata、输出 schema 和 scanner facts API。
 - [x] `npm pack --dry-run` 验证发布包不包含 `node_modules` 或 scanner 源码。
-- [ ] 完成 scanner facts 行为、working-tree/diff 通道、缓存共享和 schema 兼容性契约测试。
-- [ ] 完成实际扫描、测试映射、风险排序和报告生成逻辑。
+- [x] 完成 scanner facts 行为、working-tree/diff 通道、缓存共享和 schema 兼容性契约测试。
+- [x] 完成实际扫描、测试映射、风险排序和报告生成逻辑。
 
 ### Phase 1：测试文件发现和静态映射
 
@@ -633,7 +633,7 @@ Phase 0 当前进度：
 
 - 添加 DSH plugin bundle、skill、README、CI 和发布文档。
 - 与 `dsh-repo-scanner`、`dsh-change-impact`、`dsh-refactor-insight` 做组合测试。
-- 默认在可安装的 `@deepseek-ai/dsh@0.1.2-rc.1`（Node >=22.19）上做组合验证；scanner 通过干净环境中的 `npm i dsh-repo-scanner` 安装并使用 lockfile 复现。另将 `dsh-v0.1.3-alpha.1` 列为可选预发布验证：Python SDK 单文件 runtime 下以 `node scripts/test-insight.mjs` 开头的命令不被重写；Windows 盘符根目录 Workspace 可正常分析；会话内产物落盘走可观察写入并正确处理 `FS_NOT_OBSERVED`；代理环境下安装与运行遵循 `HTTP_PROXY`/`NO_PROXY`。alpha 验证必须显式安装并记录，不纳入默认 CI 门禁。
+- 默认在可安装的 `@deepseek-ai/dsh@0.2.1-rc.2`（Node >=22.19，2026-10-24 起；基线演进见 §0）上做组合验证；scanner 通过干净环境中的 `npm i dsh-repo-scanner` 安装并使用 lockfile 复现。可选预发布验证仅存档（`dsh-v0.1.3-alpha.1`，2026-09，已被 npm 0.1.5+ 系列取代）：Python SDK 单文件 runtime 下以 `node scripts/test-insight.mjs` 开头的命令不被重写；Windows 盘符根目录 Workspace 可正常分析；会话内产物落盘走可观察写入并正确处理 `FS_NOT_OBSERVED`；代理环境下安装与运行遵循 `HTTP_PROXY`/`NO_PROXY`。任何 GitHub 预发布验证必须显式安装并记录，不纳入默认 CI 门禁。
 - 用真实仓库提交建立回归样例。
 
 验收：插件安装后技能可见，真实变更可生成报告，所有限制均有展示。
@@ -670,7 +670,7 @@ Phase 0 当前进度：
 
 ### 跨平台测试
 
-- Windows、Ubuntu、macOS（x64 与 arm64；默认 DSH 0.1.2-rc.1 门禁按 npm 可安装平台执行，`dsh-v0.1.3-alpha.1` 的 macOS x64 runtime wheel 仅在可选 alpha 验证中覆盖）。
+- Windows、Ubuntu、macOS（x64 与 arm64；默认 DSH 0.2.1-rc.2 门禁按 npm 可安装平台执行，历史可选 alpha 验证 `dsh-v0.1.3-alpha.1` 的 macOS x64 runtime wheel 已随该 alpha 存档，仅作记录）。
 - Node：独立 CLI/库脚本 Node 20.11+ 与 22；DSH 宿主统一 Node >=22.19（Node 18 已 EOL，不再支持）。
 - CRLF、UTF-8 BOM、路径空格、中文路径和 Windows 盘符根目录 Workspace。
 - Node、Python、Go fixture。
@@ -797,3 +797,11 @@ Phase 0 当前进度：
 - 2026-09-06：对照本地官方维护文档与仓库当前状态修订基线：区分 npm 可安装宿主 `@deepseek-ai/dsh@0.1.2-rc.1` 与 GitHub 预发布 `dsh-v0.1.3-alpha.1`，默认 CI/组合验证改为 0.1.2-rc.1；scanner 基线更新为 v0.1.1（当前源码/文档），输出契约 `tool.version` 不再硬编码 0.1.0；`dsh-telemetry` 更新为 v0.1.1；修正 `perfBudgetMs` 为单次 `scanRepository` 预算、端到端预算由插件外层统一计时；补齐 DSH 插件入口 `FileSystemSkillProvider`/`inject`、`cordis.patch.yml` 与 `SKILL.md` frontmatter 打包细节；跨平台测试按 DSH 宿主 Node >=22.19 与独立 CLI Node 20.11+ 分层表述。
 - 2026-09-06（五步合并）：统一 v0.1 范围和 CLI 输入模式；补充 `test-insight.json` schema 交付要求；收紧 Git、草稿、输出路径和脱敏边界；将 scanner 安装固定为 `npm i dsh-repo-scanner` 并以 lockfile/`tool.version` 为版本依据；将 coverage 解析明确移至 v0.2；新增五步实施清单和 DoD 验收项。
 - 2026-09-06（Phase 0 骨架）：创建 npm/ESM 项目骨架，执行 `npm i dsh-repo-scanner` 并验证三个 scanner API 导出；加入初版输出 schema、CLI/plugin/runbook、smoke test 和 npm pack 检查。修正 Windows 下 `node:test` 不应扫描 CLI 入口的问题；完整 facts 契约和分析逻辑仍待实现。
+- 2026-10-24（范围演进与现状对齐）：记录 v0.1 计划到 1.0.0-rc.3 的实际范围演进，消除计划与 README/CHANGELOG 讲两个版本故事的漂移：
+  - **提前落地的 v0.2/v1.0 条目**：coverage 解析（`--coverage`/`--coverage-threshold`/`--coverage-format`，lcov/Istanbul/Cobertura，A 级证据）、`test_matrix`（内嵌为报告 `test_matrix` 字段，不再产出独立 `test-matrix.json` 文件）、显式授权测试执行（`--execute-tests` + `--test-command` 白名单，含 `--execution-timeout`/`--execution-max-output`，spawn 前剥离 `NODE_TEST_CONTEXT` 防止 node:test 宿主递归跳过）。§3「提供 coverage_path 返回不支持该版本特性」的 v0.1 冻结语义随之作废，以实现为准。
+  - **草稿产物语义修订**：§2/§9 示例中的 `--output tests/generated` 与独立 `test-matrix.json` 落盘改为 `--draft-output`（默认 `.dsh/test-insight/drafts`，隐藏目录、原子写入、覆盖保护），矩阵内嵌于 `test-insight.json`。
+  - **补充映射与排序**：§5.3 优先级 3（镜像路径）与 4（名称包含）已实现（`mirror`/`name` 类型，含歧义不猜）；插件层补充 Go `*_test.go` 分类（scanner 将其归为 source，插件按命名约定补识别并保留 source/confidence）；§5.2 框架识别落地为 `src/frameworks.mjs`（Jest/Vitest/pytest/Go testing/node-test + run_methods 命令候选，均带 source/confidence）；§6.2 新增反向依赖数、依赖环、长函数与上帝对象因子（来自 scanner facts，不重新解析源码）；§7.3 草稿生成前读取 manifest、相邻测试、导出方式；§7.1 用例补充 `expected` 字段。
+  - **输出安全**：§8/Step 3 的符号链接与路径穿越检查落地（`src/output-security.mjs`，报告与草稿写入共用）。
+  - **测试缺口补齐**：Node/Python/Go fixture（`test/fixtures/{adapter,python,go,entry}-repo`）；§11 退出码契约 0/1/2/3 与 working-tree/--diff CLI 端到端、无效 ref、非 Git 目录、无测试项目、相邻测试弱关联、源码与测试同时变更、coverage 可用/缺失/格式错误、多级依赖与入口传播端到端；快照示例 `examples/test-insight.example.json`；跨平台专项（CRLF/BOM/空格/中文路径/Windows 盘符）；2000 文件性能回归。契约测试顺带修复三处实现缺陷：CLI 未传 `--coverage-format` 时归一化误拒（原每次 CLI 运行必失败）、报告写入 mkdir 失败误报 SCAN_FAILED 而非 OUTPUT_FAILED、全仓模式下仅弱关联目标不进入缺口清单。
+  - **已知 scanner 兼容垫片**：`dsh-repo-scanner@0.1.x` 的 statusText 解析器不识别 porcelain v1 首列为空格的未暂存行（`" M path"`），插件在 facts 边界将其规范化为可解析形式；库接口 `diffPath` 通道在 adapter 层解析为 `diffText`（scanner 只认三条通道）。
+  - Phase 0 清单按现状勾选（facts/通道/缓存/schema 契约测试与实际分析逻辑均已完成）；§9 参数表未列出的新增 CLI 参数以 `--help` 与双语 README 为准。

@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { redactString } from "./redaction.mjs";
 import { ERROR_CODES, EXIT_CODES, InsightError } from "./errors.mjs";
+import { assertInsideRoot, assertNoSymbolicLink } from "./output-security.mjs";
+import { detectTestFrameworks } from "./frameworks.mjs";
 
 const LANGUAGE_EXTENSIONS = Object.freeze({
   javascript: "js",
@@ -9,6 +11,9 @@ const LANGUAGE_EXTENSIONS = Object.freeze({
   python: "py",
   go: "go",
 });
+
+const MANIFEST_CANDIDATES = Object.freeze(["package.json", "pyproject.toml", "go.mod", "requirements.txt", "Cargo.toml"]);
+const CONTEXT_READ_LIMIT = 4000;
 
 function metadataForDraft({ content, ...metadata }) {
   return metadata;
@@ -28,15 +33,85 @@ function languageFor(target, report) {
   return file?.language || "unknown";
 }
 
-function draftForTarget(target, report, generatedAt) {
+async function readHead(repoPath, relativePath, limit = CONTEXT_READ_LIMIT) {
+  const absolute = path.resolve(repoPath, relativePath);
+  return fs.readFile(absolute, "utf8").then((text) => text.slice(0, limit)).catch(() => null);
+}
+
+function detectExportStyle(text, language) {
+  if (!text) return "unknown";
+  if (language === "python") return /\bdef\s|\bclass\s/.test(text) ? "python" : "unknown";
+  if (language === "go") return /\bfunc\s/.test(text) ? "go" : "unknown";
+  if (/export\s+default|export\s+(async\s+)?(function|class|const|let|var)|export\s*\{/.test(text)) return "esm";
+  if (/module\.exports|exports\.\w+\s*=/.test(text)) return "cjs";
+  return "unknown";
+}
+
+// Plan §7.3: before generating a draft, read the project manifest, the test
+// framework conventions, at least one adjacent test file, and the target's
+// export style. All reads are best-effort; missing evidence becomes null and
+// keeps its own source/confidence instead of being guessed.
+export async function collectDraftContext(report, input, mapping = null) {
+  const repoPath = input?.repoPath || ".";
+  const frameworks = detectTestFrameworks(report);
+  let manifest = null;
+  for (const candidate of MANIFEST_CANDIDATES) {
+	const text = await readHead(repoPath, candidate, 2000);
+	if (text !== null) {
+	  let testScript = null;
+	  try {
+		const parsed = JSON.parse(text);
+		testScript = parsed?.scripts?.test || null;
+	  } catch {}
+	  manifest = { path: candidate, test_script: testScript ? redactString(testScript) : null };
+	  break;
+	}
+  }
+  const adjacentByTarget = new Map();
+  // Context reads are I/O; cap them so pathological target lists stay bounded
+  // (draft targets are already capped by max_targets, default 50).
+  const contextTargets = (report?.targets || []).slice(0, 50);
+  for (const target of contextTargets) {
+	const mapped = (mapping?.mappings || []).find((item) => item.target_file === target.path);
+	const adjacent = mapped?.test_file
+	  || (report?.files || []).find((file) => file.kind === "test"
+		&& path.dirname(file.path.replaceAll("\\", "/")) === path.dirname(target.path.replaceAll("\\", "/"))
+		&& file.path !== target.path)?.path
+	  || null;
+	const style = adjacent ? await readHead(repoPath, adjacent) : null;
+	adjacentByTarget.set(target.path, {
+	  test_file: adjacent,
+	  excerpt: style ? redactString(style.split("\n").slice(0, 12).join("\n")) : null,
+	});
+  }
+  const exportStyleByTarget = new Map();
+  for (const target of contextTargets) {
+	const language = languageFor(target, report);
+	const text = await readHead(repoPath, target.path);
+	exportStyleByTarget.set(target.path, detectExportStyle(text, language));
+  }
+  return { manifest, frameworks, adjacentByTarget, exportStyleByTarget };
+}
+
+function draftForTarget(target, report, generatedAt, context = null) {
   const language = languageFor(target, report);
   const targetName = target.symbol ? `${target.path}:${target.symbol}` : target.path;
+  const framework = context?.frameworks?.frameworks?.[0] || null;
+  const adjacent = context?.adjacentByTarget?.get(target.path) || null;
+  const exportStyle = context?.exportStyleByTarget?.get(target.path) || "unknown";
+  const styleNotes = [
+	framework ? `Framework hint: ${framework.name} (source: ${framework.source}, confidence: ${framework.confidence})` : "Framework hint: none detected; confirm the project framework manually.",
+	adjacent?.test_file ? `Adjacent test for style: ${adjacent.test_file}` : "Adjacent test: none found; follow the project's existing test layout.",
+	`Target export style: ${exportStyle}`,
+	context?.manifest ? `Manifest: ${context.manifest.path}${context.manifest.test_script ? ` (test script: ${context.manifest.test_script})` : ""}` : "Manifest: not found.",
+  ];
   const header = [
 	"/*",
 	" * dsh-test-insight generated test draft.",
 	" * STATUS: DRAFT ONLY; NOT EXECUTED OR VERIFIED.",
 	` * Generated: ${generatedAt}`,
 	` * Target: ${redactString(targetName)}`,
+	...styleNotes.map((note) => ` * ${note}`),
 	" * REVIEW REQUIRED: adjust imports, fixtures, environment variables, and assertions.",
 	" */",
   ].join("\n");
@@ -45,6 +120,7 @@ function draftForTarget(target, report, generatedAt) {
 	  `# dsh-test-insight generated test draft; NOT EXECUTED OR VERIFIED. Generated: ${generatedAt}`,
 	  `# REVIEW REQUIRED: adjust imports, fixtures, environment variables, and assertions.`,
 	  `# Target: ${redactString(targetName)}`,
+	  ...styleNotes.map((note) => `# ${note}`),
 	  "",
 	  "def test_generated_behavior():",
 	  "    # TODO: import the public API and replace this placeholder with reviewed assertions.",
@@ -56,6 +132,7 @@ function draftForTarget(target, report, generatedAt) {
 	  `// dsh-test-insight generated test draft; NOT EXECUTED OR VERIFIED. Generated: ${generatedAt}`,
 	  `// REVIEW REQUIRED: adjust imports, fixtures, environment variables, and assertions.`,
 	  `// Target: ${redactString(targetName)}`,
+	  ...styleNotes.map((note) => `// ${note}`),
 	  "package draft",
 	  "",
 	  "import \"testing\"",
@@ -101,7 +178,10 @@ function outputPathFor(target, report, input, index) {
   const language = languageFor(target, report);
   const extension = LANGUAGE_EXTENSIONS[language] || "txt";
 	const root = input.draftOutputPath || path.join(input.repoPath, ".dsh", "test-insight", "drafts");
-  return path.resolve(root, `${String(index + 1).padStart(2, "0")}-${safeName(target.path)}${target.symbol ? `-${safeName(target.symbol)}` : ""}.test.${extension}`);
+  // Plan §8: derived file names must stay inside the draft root even when the
+  // target path or symbol contains traversal-looking segments.
+  const filePath = path.resolve(root, `${String(index + 1).padStart(2, "0")}-${safeName(target.path)}${target.symbol ? `-${safeName(target.symbol)}` : ""}.test.${extension}`);
+  return assertInsideRoot(root, filePath, "draft");
 }
 
 async function exists(filePath) {
@@ -114,6 +194,7 @@ async function exists(filePath) {
 }
 
 async function atomicWriteDraft(filePath, content, force) {
+  await assertNoSymbolicLink(filePath, "draft");
   if (!force && await exists(filePath)) {
 	throw new InsightError(`draft exists; use --force to overwrite: ${filePath}`, {
 	  code: ERROR_CODES.INVALID_OUTPUT,
@@ -138,12 +219,14 @@ async function atomicWriteDraft(filePath, content, force) {
   return filePath;
 }
 
-export function buildDrafts(report, input) {
+export function buildDrafts(report, input, context = null) {
   const generatedAt = new Date().toISOString();
   const targets = report.targets || [];
   return targets.map((target, index) => {
 	const language = languageFor(target, report);
-	const content = draftForTarget(target, report, generatedAt);
+	const content = draftForTarget(target, report, generatedAt, context);
+	const adjacent = context?.adjacentByTarget?.get(target.path) || null;
+	const framework = context?.frameworks?.frameworks?.[0] || null;
 	return {
 	  target: target.symbol ? `${target.path}:${target.symbol}` : target.path,
 	  path: outputPathFor(target, report, input, index),
@@ -151,6 +234,14 @@ export function buildDrafts(report, input) {
 	  status: "draft_only",
 	  review_required: true,
 	  syntax: syntaxCheck(content, language),
+	  ...(context ? {
+		context: {
+		  manifest: context.manifest || null,
+		  framework: framework ? { name: framework.name, source: framework.source, confidence: framework.confidence } : null,
+		  adjacent_test: adjacent?.test_file || null,
+		  export_style: context.exportStyleByTarget?.get(target.path) || "unknown",
+		},
+	  } : {}),
 	  content,
 	};
   });

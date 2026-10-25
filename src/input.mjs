@@ -55,10 +55,13 @@ function normalizeCoverageOptions(raw) {
 	max: 100,
 	fallback: DEFAULTS.coverage.threshold,
   });
+  // CLI defaults pass null for an unset format; treat null like undefined so
+  // the format stays auto-detected instead of failing normalization.
+  const requestedFormat = options.format ?? raw.coverageFormat ?? raw.coverage_format;
   return {
 	path: coveragePath === null ? null : coveragePath.trim(),
 	threshold,
-	format: options.format === undefined ? null : requiredString(options.format, "coverage.format", ERROR_CODES.INVALID_COVERAGE).toLowerCase(),
+	format: requestedFormat === null || requestedFormat === undefined ? null : requiredString(requestedFormat, "coverage.format", ERROR_CODES.INVALID_COVERAGE).toLowerCase(),
   };
 }
 

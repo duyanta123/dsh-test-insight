@@ -1,6 +1,6 @@
 {
   "name": "dsh-test-insight",
-  "version": "1.0.0-rc.3",
+  "version": "1.0.0-rc.4",
   "description": "Evidence-backed test plans and reviewable test drafts for DeepSeek Harness.",
   "license": "MIT",
   "type": "module",
@@ -30,6 +30,7 @@
     "schema",
     "skills",
     "docs",
+    "examples",
     "README.md",
     "README.zh-CN.md",
     "CHANGELOG.md",
@@ -37,7 +38,7 @@
     "cordis.patch.yml"
   ],
   "scripts": {
-    "test": "node --test test/smoke.test.mjs test/input.test.mjs test/adapter.test.mjs test/analysis.test.mjs test/report.test.mjs test/cli.test.mjs test/contract.test.mjs test/coverage.test.mjs test/draft-execution.test.mjs test/performance.test.mjs",
+    "test": "node --test test/smoke.test.mjs test/input.test.mjs test/adapter.test.mjs test/mapping.test.mjs test/analysis.test.mjs test/report.test.mjs test/cli.test.mjs test/contract.test.mjs test/coverage.test.mjs test/draft-execution.test.mjs test/output-security.test.mjs test/cross-platform.test.mjs test/snapshot.test.mjs test/performance.test.mjs",
     "test:smoke": "node --test test/smoke.test.mjs",
     "test:compat": "node test/dsh-compat.test.mjs",
     "pack:check": "npm pack --dry-run",
@@ -49,7 +50,7 @@
     }
   },
   "dependencies": {
-    "dsh-repo-scanner": "^0.1.1"
+    "dsh-repo-scanner": "^0.1.3"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-skill-filesystem": "*"

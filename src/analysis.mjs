@@ -203,7 +203,65 @@ export function buildEvidence(report, mapping, { testFacts = null, changeFacts =
 	|| compareText(a.source, b.source));
 }
 
-function scoreForTarget({ path, file, report, mapping, changePaths, directChanged, gapByPath }) {
+// Plan §6.2 structural risk factors derived from scanner facts only:
+// reverse-dependency count, dependency-cycle membership, and per-file symbol
+// statistics (longest function, function count). No re-parsing of source.
+const LONG_FUNCTION_LINES = 80;
+const GOD_OBJECT_SYMBOLS = 10;
+const REVERSE_DEPS_MEDIUM = 1;
+const REVERSE_DEPS_HIGH = 3;
+
+function buildDependencyGraph(report) {
+  const adjacency = new Map();
+  for (const dep of report?.dependencies?.internal || []) {
+	if (!dep?.source || !dep?.target || dep.source === dep.target) continue;
+	if (!adjacency.has(dep.source)) adjacency.set(dep.source, new Set());
+	adjacency.get(dep.source).add(dep.target);
+  }
+  return adjacency;
+}
+
+function reverseDependencyCounts(report) {
+  const counts = new Map();
+  for (const dep of report?.dependencies?.internal || []) {
+	if (!dep?.target || !dep?.source || dep.source === dep.target) continue;
+	counts.set(dep.target, (counts.get(dep.target) || 0) + 1);
+  }
+  return counts;
+}
+
+function nodesInDependencyCycles(adjacency) {
+  const cyclic = new Set();
+  const visit = (origin, current, depth, seen) => {
+	if (depth > 24) return;
+	for (const next of adjacency.get(current) || []) {
+	  if (next === origin) {
+		cyclic.add(origin);
+		return;
+	  }
+	  if (seen.has(next)) continue;
+	  seen.add(next);
+	  visit(origin, next, depth + 1, seen);
+	}
+  };
+  for (const node of adjacency.keys()) visit(node, node, 0, new Set([node]));
+  return cyclic;
+}
+
+function symbolStatsForPath(report, path) {
+  const symbols = (report?.symbols || []).filter((symbol) => symbol.path === path);
+  let longest = 0;
+  let functions = 0;
+  for (const symbol of symbols) {
+	if (Number.isInteger(symbol.start_line) && Number.isInteger(symbol.end_line)) {
+	  longest = Math.max(longest, symbol.end_line - symbol.start_line + 1);
+	}
+	if (symbol.kind === "function" || symbol.kind === "method") functions += 1;
+  }
+  return { longest, functions, total: symbols.length };
+}
+
+function scoreForTarget({ path, file, report, mapping, changePaths, directChanged, gapByPath, reverseDepCounts, cyclicNodes, symbolStatsByPath }) {
   let score = 0;
   const reasons = [];
   if (directChanged.has(path)) {
@@ -233,6 +291,29 @@ function scoreForTarget({ path, file, report, mapping, changePaths, directChange
   }
   const gapCount = gapByPath.get(path) || 0;
   score += Math.min(gapCount, 2);
+  const reverseCount = reverseDepCounts?.get(path) || 0;
+  if (reverseCount >= REVERSE_DEPS_HIGH) {
+	score += 2;
+	reasons.push(`reverse dependencies: ${reverseCount} modules`);
+  } else if (reverseCount >= REVERSE_DEPS_MEDIUM) {
+	score += 1;
+	reasons.push(`reverse dependencies: ${reverseCount} module(s)`);
+  }
+  if (cyclicNodes?.has(path)) {
+	score += 2;
+	reasons.push("dependency cycle");
+  }
+  const stats = symbolStatsByPath?.get(path);
+  if (stats) {
+	if (stats.longest >= LONG_FUNCTION_LINES) {
+	  score += 1;
+	  reasons.push(`long function (${stats.longest} lines)`);
+	}
+	if (stats.total >= GOD_OBJECT_SYMBOLS) {
+	  score += 1;
+	  reasons.push(`god object (${stats.total} symbols in one module)`);
+	}
+  }
   return { score, reasons, file, entry, exported };
 }
 
@@ -266,6 +347,14 @@ export function buildGaps(report, mapping, input, changeFacts = null, coverage =
   }
   if (input?.mode !== "change" && input?.mode !== "target") {
 	for (const path of paths) selected.add(path);
+	// Whole-repo mode: sources covered only by weak static association (C/D)
+	// never appear in source_files_without_tests, so surface them here —
+	// plan §6.1 lists weak_test_association as a first-class gap type.
+	for (const item of mapping?.mappings || []) {
+	  if (item.target_file && item.evidence_level !== "B" && fileIndex.get(item.target_file)?.kind === "source") {
+		selected.add(item.target_file);
+	  }
+	}
   }
 
   const gaps = [];
@@ -316,6 +405,8 @@ export function buildGaps(report, mapping, input, changeFacts = null, coverage =
 			: "变更 hunk 仅包含注释、空白或格式标记，未升级为高优先级缺口",
 		});
 	  }
+	}
+
 	if (coverageFile && coverage?.threshold > 0 && coverageFile.metrics.lines.percent !== null && coverageFile.metrics.lines.percent < coverage.threshold) {
 	  addGap({
 		type: "coverage_below_threshold",
@@ -324,7 +415,6 @@ export function buildGaps(report, mapping, input, changeFacts = null, coverage =
 		confidence: "high",
 		reason: `真实 coverage 行覆盖率 ${coverageFile.metrics.lines.percent.toFixed(2)}% 低于阈值 ${coverage.threshold}%`,
 	  });
-	}
 	}
 
 	const entry = (report?.entry_points || []).find((item) => item.path === path);
@@ -428,8 +518,13 @@ export function buildTargets(report, mapping, input, changeFacts = null, gaps = 
 	const key = `${candidate.path}|${candidate.symbol || ""}`;
 	if (!unique.has(key)) unique.set(key, candidate);
   }
+  const adjacency = buildDependencyGraph(report);
+  const cyclicNodes = nodesInDependencyCycles(adjacency);
+  const reverseDepCounts = reverseDependencyCounts(report);
+  const symbolStatsByPath = new Map();
   const targets = [];
   for (const candidate of unique.values()) {
+	if (!symbolStatsByPath.has(candidate.path)) symbolStatsByPath.set(candidate.path, symbolStatsForPath(report, candidate.path));
 	const result = scoreForTarget({
 	  ...candidate,
 	  report,
@@ -437,6 +532,9 @@ export function buildTargets(report, mapping, input, changeFacts = null, gaps = 
 	  changePaths: change.all,
 	  directChanged: new Set(change.direct),
 	  gapByPath,
+	  reverseDepCounts,
+	  cyclicNodes,
+	  symbolStatsByPath,
 	  file: files.get(candidate.path) || null,
 	});
 	targets.push({

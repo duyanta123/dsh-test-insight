@@ -22,9 +22,12 @@ export {
   validateScannerReport,
 } from "./scanner-adapter.mjs";
 export { buildTestMapping } from "./mapping.mjs";
-export { buildDrafts, writeDraftObjects, writeDrafts } from "./drafts.mjs";
+export { detectTestFrameworks } from "./frameworks.mjs";
+export { assertInsideRoot, assertNoSymbolicLink } from "./output-security.mjs";
+export { buildDrafts, collectDraftContext, writeDraftObjects, writeDrafts } from "./drafts.mjs";
 export {
   AUTHORIZED_COMMAND_PRESETS,
+  commandFromRunMethods,
   executeAuthorizedTests,
   normalizeAuthorizedCommand,
   resolveAuthorizedCommand,

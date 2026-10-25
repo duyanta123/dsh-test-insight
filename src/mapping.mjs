@@ -3,6 +3,15 @@ import { compareText } from "./ordering.mjs";
 const SOURCE_KINDS = new Set(["source"]);
 const TEST_KINDS = new Set(["test"]);
 const CONFIDENCE_RANK = Object.freeze({ high: 3, medium: 2, low: 1, unknown: 0 });
+// Test-root directory names aligned with the scanner's TEST_DIR_NAMES; a test
+// file living under one of these roots maps to a source file in the mirrored
+// directory (plan §5.3 priority 3).
+const MIRROR_TEST_ROOTS = new Set(["test", "tests", "__tests__", "spec", "specs", "e2e", "integration", "integration-test", "unit"]);
+// Go convention `*_test.go` sits next to the source in the same package, which
+// the scanner classifies as `source`; the plugin layer supplements this
+// classification (plan §5.2) instead of rewriting scanner facts.
+const GO_TEST_FILE = /_test\.go$/i;
+const NAME_CONTAINMENT_MIN_STEM = 4;
 
 function baseName(value) {
   return String(value || "").split("/").pop() || "";
@@ -22,9 +31,20 @@ function directory(value) {
   return parts.join("/");
 }
 
+function isGoTestFile(file) {
+  return file?.kind === "source" && file?.language === "go" && GO_TEST_FILE.test(file.path || "");
+}
+
+function stripMirrorRoots(dir) {
+  const parts = String(dir || "").split("/").filter(Boolean);
+  let index = 0;
+  while (index < parts.length && MIRROR_TEST_ROOTS.has(parts[index].toLowerCase())) index += 1;
+  return parts.slice(index).join("/");
+}
+
 function evidenceLevel(kind, confidence) {
 	if (kind === "symbol-reference" || kind === "dependency") return "B";
-  if (kind === "module") return "C";
+  if (kind === "mirror" || kind === "module") return "C";
   if (kind === "name") return "D";
   return "E";
 }
@@ -39,8 +59,17 @@ function betterCandidate(current, candidate) {
 }
 
 export function buildTestMapping(report, testFacts = null) {
-  const sourceFiles = (report?.files || []).filter((file) => SOURCE_KINDS.has(file.kind));
-  const testFiles = (report?.files || []).filter((file) => TEST_KINDS.has(file.kind));
+  const allFiles = report?.files || [];
+  // Plugin-layer supplement: scanner-classified `source` files following the Go
+  // `*_test.go` convention are treated as test files here (plan §5.2), with the
+  // recognition source kept on the resulting mappings.
+  const testFiles = allFiles.filter((file) => TEST_KINDS.has(file.kind) || isGoTestFile(file));
+  const sourceFiles = allFiles.filter((file) => SOURCE_KINDS.has(file.kind) && !isGoTestFile(file));
+  const supplementedTests = new Map(
+    allFiles
+      .filter((file) => TEST_KINDS.has(file.kind) === false && isGoTestFile(file))
+      .map((file) => [file.path, { source: "filename convention: *_test.go", confidence: "high" }]),
+  );
   const sourceByBase = new Map(sourceFiles.map((file) => [baseName(file.path), file]));
   const sourceByStem = new Map();
   for (const source of sourceFiles) {
@@ -65,6 +94,7 @@ export function buildTestMapping(report, testFacts = null) {
   const orphanTests = [];
   const coveredSources = new Set();
   for (const test of testFiles) {
+	const recognition = supplementedTests.get(test.path);
 	const importedTargets = (internalBySource.get(test.path) || [])
 	  .map((dep) => sourceFiles.find((source) => source.path === dep.target))
 		.filter(Boolean)
@@ -82,6 +112,7 @@ export function buildTestMapping(report, testFacts = null) {
 		  confidence: "high",
 		  evidence_level: evidenceLevel(kind, "high"),
 		  same_directory: directory(test.path) === directory(source.path),
+		  ...(recognition ? { recognition } : {}),
 		  ...(refs.length > 0 ? { symbol_references: refs } : {}),
 		});
 		coveredSources.add(source.path);
@@ -89,7 +120,7 @@ export function buildTestMapping(report, testFacts = null) {
 	  continue;
 	}
 
-	const candidate = findNameCandidate(test, sourceByBase, sourceByStem);
+	const candidate = findNameCandidate(test, sourceByBase, sourceByStem, sourceFiles);
 	if (candidate) {
 	  const source = candidate.source;
 	  mapped.push({
@@ -99,6 +130,7 @@ export function buildTestMapping(report, testFacts = null) {
 		confidence: candidate.confidence,
 		evidence_level: evidenceLevel(candidate.kind, candidate.confidence),
 		same_directory: candidate.same_directory,
+		...(recognition ? { recognition } : {}),
 	  });
 	  coveredSources.add(source.path);
 	} else {
@@ -144,7 +176,7 @@ export function buildTestMapping(report, testFacts = null) {
   };
 }
 
-function findNameCandidate(test, sourceByBase, sourceByStem) {
+function findNameCandidate(test, sourceByBase, sourceByStem, sourceFiles) {
   const exactBase = sourceByBase.get(baseName(test.path));
   if (exactBase && !TEST_KINDS.has(exactBase.kind)) {
 	const sameDirectory = directory(test.path) === directory(exactBase.path);
@@ -165,5 +197,38 @@ function findNameCandidate(test, sourceByBase, sourceByStem) {
 	  same_directory: directory(test.path) === directory(source.path),
 	});
   }
-  return best;
+  // Same-directory stem association outranks the weaker supplements below.
+  if (best?.same_directory) return best;
+  const mirror = findMirrorCandidate(test, sourceFiles);
+  if (mirror) return mirror;
+  if (best) return best;
+  return findContainmentCandidate(test, sourceFiles);
+}
+
+// Plan §5.3 priority 3: a test file under a test root maps to the source file
+// with the same stem in the mirrored directory (tests/src/a/x.test.js -> src/a/x.js).
+function findMirrorCandidate(test, sourceFiles) {
+  const testDir = directory(test.path);
+  const mirroredDir = stripMirrorRoots(testDir);
+  if (mirroredDir === testDir) return null;
+  const testStem = stem(test.path).toLowerCase();
+  if (!testStem) return null;
+  const matches = sourceFiles.filter((source) => directory(source.path) === mirroredDir && stem(source.path).toLowerCase() === testStem);
+  if (matches.length !== 1) return null;
+  return { source: matches[0], kind: "mirror", confidence: "medium", same_directory: false };
+}
+
+// Plan §5.3 priority 4: the test name contains the target module name. Only a
+// unique containment match is accepted; ambiguity stays unmapped (orphan).
+// Stems keep their extension in the filename-convention matchers above, so the
+// containment comparison strips it (name-level, not filename-convention-level).
+function findContainmentCandidate(test, sourceFiles) {
+  const testStem = stem(test.path).toLowerCase().replace(/\.[^.]+$/, "");
+  if (testStem.length < NAME_CONTAINMENT_MIN_STEM) return null;
+  const matches = sourceFiles.filter((source) => {
+	const sourceStem = stem(source.path).toLowerCase().replace(/\.[^.]+$/, "");
+	return sourceStem.length >= NAME_CONTAINMENT_MIN_STEM && testStem.includes(sourceStem);
+  });
+  if (matches.length !== 1) return null;
+  return { source: matches[0], kind: "name", confidence: "low", same_directory: false };
 }
