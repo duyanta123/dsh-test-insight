@@ -6,6 +6,7 @@
 - 补齐计划 §11 契约测试：退出码 0/1/2/3 全路径、working-tree 与 --diff 的 CLI 端到端采集、无效 ref、非 Git 目录、无测试项目、相邻测试弱关联、源码与测试同时变更、coverage 可用/缺失/格式错误、多级依赖与入口传播端到端、快照示例 `examples/test-insight.example.json`（Phase 0 交付要求）、跨平台专项（CRLF、UTF-8 BOM、路径空格、中文路径、Windows 盘符路径）与 2000 文件性能回归。
 - 修复：CLI 未显式传 `--coverage-format` 时输入归一化误拒（`coverage.format must be a non-empty string`），导致所有携带 coverage 选项的 CLI 运行以退出码 2 失败。
 - 修复：报告输出目录创建失败（如父路径为已有文件）误报为 `SCAN_FAILED`，现在按契约映射为 `OUTPUT_FAILED`（退出码 3）。
+- 修复：输出路径的父组件为普通文件时，`assertNoSymbolicLink` 对 lstat 失败码的白名单（ENOENT/ENOTDIR）在 Linux/macOS CI 上不成立，被误判为输入错误（退出码 2）——现改为任何 lstat 失败都沿祖先链继续符号链接检查，真正不可写的路径统一由写入阶段以 `OUTPUT_FAILED`（退出码 3）暴露；契约用例失败时附带 CLI stderr 便于定位。
 - 修复：全仓模式下仅有弱静态关联（C/D 级）的目标不进入缺口清单——`weak_test_association` 现按计划 §6.1 在全仓模式输出。
 - 输出安全（计划 §8/Step 3）：报告与草稿写入前检查符号链接与路径穿越（`src/output-security.mjs`）；草稿文件名对穿越形目标/符号保持根目录内约束。
 - 草稿生成读取项目 manifest、相邻测试文件、框架识别与目标导出方式（计划 §7.3），草稿元数据新增 `context`；设计用例补充计划 §7.1 的 `expected` 字段。

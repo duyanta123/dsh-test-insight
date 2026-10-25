@@ -12,14 +12,16 @@ export async function assertNoSymbolicLink(filePath, label = "output") {
 	let stats;
 	try {
 	  stats = await fs.lstat(current);
-	} catch (error) {
-	  if (error?.code === "ENOENT") {
-		const parent = path.dirname(current);
-		if (parent === current) return;
-		current = parent;
-		continue;
-	  }
-	  throw invalidInput(`cannot inspect ${label} path: ${current}`, ERROR_CODES.INVALID_OUTPUT, { path: current, cause: error.code || error.message });
+	} catch {
+	  // Missing or non-traversable tail component (ENOENT, ENOTDIR, or any
+	  // other lstat failure — the exact code varies by platform and fs): walk
+	  // up so existing ancestors still get symlink-checked; the unwritable
+	  // write itself must surface later as OUTPUT_FAILED (exit 3) instead of
+	  // an input error.
+	  const parent = path.dirname(current);
+	  if (parent === current) return;
+	  current = parent;
+	  continue;
 	}
 	if (stats.isSymbolicLink()) {
 	  throw invalidInput(`${label} path traverses a symbolic link: ${current}`, ERROR_CODES.INVALID_OUTPUT, { path: current });
