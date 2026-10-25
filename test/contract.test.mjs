@@ -180,7 +180,7 @@ test("exit 3 when report output cannot be written", async () => {
   await writeFile(blocker, "a file, not a directory");
   const capture = io();
   const code = await main([adapterRepo, "--mode", "all", "--output", path.join(blocker, "inner.md"), "--format", "json"], capture.io);
-  assert.equal(code, 3);
+  assert.equal(code, 3, `expected exit 3, got ${code}; stderr: ${capture.stderr}`);
   assert.match(capture.stderr, /OUTPUT_FAILED|failed to write/);
 });
 
